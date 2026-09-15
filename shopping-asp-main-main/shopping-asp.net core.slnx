@@ -1,0 +1,7 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="api/api.csproj" Id="39e667c2-1c75-43ff-90c3-cbc8c983b61d" />
+    <Project Path="core/core.csproj" Id="883f5165-c122-4a24-ba57-d8c03238d4a2" />
+    <Project Path="inftastructer/inftastructer.csproj" Id="3e1b0929-c464-4f9f-97bd-9183df09613a" />
+  </Folder>
+</Solution>
