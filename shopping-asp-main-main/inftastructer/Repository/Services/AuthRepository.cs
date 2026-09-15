@@ -28,14 +28,14 @@ namespace inftastructer.Repository.Services
         private readonly AppDbContext _dbContext;
         public IEmailServices EmailServices { get; }
 
-        public AuthRepository(UserManager<AppUser> userManager, IEmailServices emailSender, SignInManager<AppUser> signInManager, ITokenGenerate tokenGenerate,IConfiguration configuration)
+        public AuthRepository(UserManager<AppUser> userManager, IEmailServices emailSender, SignInManager<AppUser> signInManager, ITokenGenerate tokenGenerate, IConfiguration configuration, AppDbContext dbContext)
         {
             _userManager = userManager;
             _emailSender = emailSender;
             _signInManager = signInManager;
             this.tokenGenerate = tokenGenerate;
             _configuration = configuration;
-            
+            _dbContext = dbContext;
         }
 
 
@@ -186,9 +186,100 @@ namespace inftastructer.Repository.Services
             return tokenGenerate.GetAndCreateToken(user);
         }
 
-      
-      
-    
+        public async Task<AuthResponseDto> LoginWithRefreshTokenAsync(loginDto loginDto)
+        {
+            var user = await _userManager.FindByEmailAsync(loginDto.email);
+            if (user == null)
+                return new AuthResponseDto { IsAuthenticated = false, Message = "Invalid email or password." };
+
+            if (user.IsFirstLogin)
+            {
+                user.IsFirstLogin = false;
+                await _userManager.UpdateAsync(user);
+            }
+
+            if (!user.EmailConfirmed)
+            {
+                return new AuthResponseDto { IsAuthenticated = false, Message = "Please confirm your email address. A confirmation email has been sent to your inbox." };
+            }
+
+            var result = await _signInManager.CheckPasswordSignInAsync(user, loginDto.Password, true);
+            if (!result.Succeeded)
+                return new AuthResponseDto { IsAuthenticated = false, Message = "Invalid email or password." };
+
+            var jwtToken = tokenGenerate.GetAndCreateToken(user);
+            var refreshToken = tokenGenerate.GenerateRefreshToken();
+            refreshToken.AppUserId = user.Id;
+
+            await _dbContext.RefreshTokens.AddAsync(refreshToken);
+            await _dbContext.SaveChangesAsync();
+
+            return new AuthResponseDto
+            {
+                IsAuthenticated = true,
+                Message = "Login successful",
+                Token = jwtToken,
+                RefreshToken = refreshToken.Token,
+                RefreshTokenExpiration = refreshToken.ExpiresOn
+            };
+        }
+
+        public async Task<AuthResponseDto> RefreshTokenAsync(string token)
+        {
+            if (string.IsNullOrWhiteSpace(token))
+                return new AuthResponseDto { IsAuthenticated = false, Message = "Token is required." };
+
+            var refreshToken = await _dbContext.RefreshTokens
+                .Include(r => r.AppUser)
+                .SingleOrDefaultAsync(r => r.Token == token);
+
+            if (refreshToken == null)
+                return new AuthResponseDto { IsAuthenticated = false, Message = "Invalid refresh token." };
+
+            if (!refreshToken.IsActive)
+                return new AuthResponseDto { IsAuthenticated = false, Message = "Refresh token is inactive or expired." };
+
+            // Token Rotation: Revoke current token
+            refreshToken.RevokedOn = DateTime.UtcNow;
+
+            var user = refreshToken.AppUser;
+            if (user == null)
+            {
+                user = await _userManager.FindByIdAsync(refreshToken.AppUserId);
+                if (user == null)
+                    return new AuthResponseDto { IsAuthenticated = false, Message = "User not found." };
+            }
+
+            var newJwtToken = tokenGenerate.GetAndCreateToken(user);
+            var newRefreshToken = tokenGenerate.GenerateRefreshToken();
+            newRefreshToken.AppUserId = user.Id;
+
+            await _dbContext.RefreshTokens.AddAsync(newRefreshToken);
+            await _dbContext.SaveChangesAsync();
+
+            return new AuthResponseDto
+            {
+                IsAuthenticated = true,
+                Message = "Token refreshed successfully.",
+                Token = newJwtToken,
+                RefreshToken = newRefreshToken.Token,
+                RefreshTokenExpiration = newRefreshToken.ExpiresOn
+            };
+        }
+
+        public async Task<bool> RevokeTokenAsync(string token)
+        {
+            if (string.IsNullOrWhiteSpace(token))
+                return false;
+
+            var refreshToken = await _dbContext.RefreshTokens.SingleOrDefaultAsync(r => r.Token == token);
+            if (refreshToken == null || !refreshToken.IsActive)
+                return false;
+
+            refreshToken.RevokedOn = DateTime.UtcNow;
+            await _dbContext.SaveChangesAsync();
+            return true;
+        }
 
 
         public async Task<string> changepassword(ChangePasswordDto changePasswordDto)

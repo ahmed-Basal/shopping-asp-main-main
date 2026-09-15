@@ -1,4 +1,4 @@
-﻿using AutoMapper;
+using AutoMapper;
 using core.Dto;
 using core.Entities;
 using core.interfaces;
@@ -64,6 +64,21 @@ namespace inftastructer.Repository.Services
         public async Task<string> LoginAsync(loginDto loginDto)
         {
          return await work.AuthRepository.LoginAsync(loginDto);
+        }
+
+        public async Task<AuthResponseDto> LoginWithRefreshTokenAsync(loginDto loginDto)
+        {
+            return await work.AuthRepository.LoginWithRefreshTokenAsync(loginDto);
+        }
+
+        public async Task<AuthResponseDto> RefreshTokenAsync(string token)
+        {
+            return await work.AuthRepository.RefreshTokenAsync(token);
+        }
+
+        public async Task<bool> RevokeTokenAsync(string token)
+        {
+            return await work.AuthRepository.RevokeTokenAsync(token);
         }
 
         public async Task<string> RegisterAsync(registerDto registerDto)

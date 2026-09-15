@@ -1,4 +1,4 @@
-﻿using core.Entities;
+using core.Entities;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 
@@ -24,11 +24,22 @@ namespace inftastructer.Data
        
         public virtual DbSet<DeliveryMethod> deliveryMethods { get; set; }
         public DbSet<comment> Comment { get; set; }
+        public DbSet<RefreshToken> RefreshTokens { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
             modelBuilder.ApplyConfigurationsFromAssembly(Assembly.GetExecutingAssembly());
+
+            modelBuilder.Entity<RefreshToken>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.Token).IsRequired().HasMaxLength(256);
+                entity.HasOne(e => e.AppUser)
+                      .WithMany(u => u.RefreshTokens)
+                      .HasForeignKey(e => e.AppUserId)
+                      .OnDelete(DeleteBehavior.Cascade);
+            });
         }
     }
 

@@ -1,4 +1,4 @@
-﻿using AutoMapper;
+using AutoMapper;
 using core.Entities;
 using core.interfaces;
 using core.Services;
@@ -52,7 +52,7 @@ namespace inftastructer.Repository
             PhotoRepository = new Photprepository(_context);
             ProductRepository = new ProductRepository(_context, _mapper, _imageManagementService);
             CustomerBasketRepository = new CustomerBasketRepository(redis);
-            AuthRepository = new AuthRepository(_userManager, emailServices, signInManager, tokenGenerate, configuration);
+            AuthRepository = new AuthRepository(_userManager, emailServices, signInManager, tokenGenerate, configuration, _context);
             accountRepository = new AccountRepository(_userManager);
            
         }

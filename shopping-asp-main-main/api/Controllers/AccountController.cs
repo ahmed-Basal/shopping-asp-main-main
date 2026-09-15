@@ -1,4 +1,4 @@
-﻿using api.halper;
+using api.halper;
 using AutoMapper;
 using core.Dto;
 using core.Entities;
@@ -58,21 +58,68 @@ namespace api.Controllers
         [HttpPost("login")]
         public async Task<IActionResult> Login(loginDto dto)
         {
-            var result = await _account.LoginAsync(dto);
+            var response = await _account.LoginWithRefreshTokenAsync(dto);
 
-            if (result.StartsWith("Invalid") || result.StartsWith("Please"))
-                return BadRequest(new { message = result });
+            if (!response.IsAuthenticated)
+                return BadRequest(new { message = response.Message });
 
-            // Token صالح، نضعه في HttpOnly Cookie
-            Response.Cookies.Append("authToken", result, new CookieOptions
+            SetAuthCookies(response.Token!, response.RefreshToken!, response.RefreshTokenExpiration);
+
+            return Ok(response);
+        }
+
+        [HttpPost("refresh-token")]
+        public async Task<IActionResult> RefreshToken([FromBody] RefreshTokenDto? dto)
+        {
+            var token = Request.Cookies["refreshToken"] ?? dto?.Token;
+            if (string.IsNullOrEmpty(token))
+                return BadRequest(new { message = "Refresh token is required." });
+
+            var response = await _account.RefreshTokenAsync(token);
+            if (!response.IsAuthenticated)
+                return BadRequest(new { message = response.Message });
+
+            SetAuthCookies(response.Token!, response.RefreshToken!, response.RefreshTokenExpiration);
+
+            return Ok(response);
+        }
+
+        [HttpPost("revoke-token")]
+        public async Task<IActionResult> RevokeToken([FromBody] RefreshTokenDto? dto)
+        {
+            var token = Request.Cookies["refreshToken"] ?? dto?.Token;
+            if (string.IsNullOrEmpty(token))
+                return BadRequest(new { message = "Token is required." });
+
+            var result = await _account.RevokeTokenAsync(token);
+            if (!result)
+                return BadRequest(new { message = "Token is invalid or already revoked." });
+
+            Response.Cookies.Delete("authToken");
+            Response.Cookies.Delete("refreshToken");
+
+            return Ok(new { message = "Token revoked successfully." });
+        }
+
+        private void SetAuthCookies(string accessToken, string refreshToken, DateTime? refreshTokenExpiration)
+        {
+            var isHttps = Request.IsHttps;
+
+            Response.Cookies.Append("authToken", accessToken, new CookieOptions
             {
                 HttpOnly = true,
-                Secure = true,           // false لو localhost أثناء التطوير
-                SameSite = SameSiteMode.Strict,
+                Secure = isHttps,
+                SameSite = SameSiteMode.Lax,
                 Expires = DateTime.UtcNow.AddHours(1)
             });
 
-            return Ok(new { message = "Login successful" });
+            Response.Cookies.Append("refreshToken", refreshToken, new CookieOptions
+            {
+                HttpOnly = true,
+                Secure = isHttps,
+                SameSite = SameSiteMode.Lax,
+                Expires = refreshTokenExpiration ?? DateTime.UtcNow.AddDays(7)
+            });
         }
 
 

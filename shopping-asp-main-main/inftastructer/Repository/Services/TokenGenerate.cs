@@ -1,4 +1,4 @@
-﻿using core.Entities;
+using core.Entities;
 using core.Services;
 using Microsoft.Extensions.Configuration;
 using Microsoft.IdentityModel.Tokens;
@@ -41,6 +41,20 @@ namespace inftastructer.Repository.Services
             var tokenHandler = new JwtSecurityTokenHandler();
             var token = tokenHandler.CreateToken(tokenDescriptor);
             return tokenHandler.WriteToken(token);
+        }
+
+        public RefreshToken GenerateRefreshToken()
+        {
+            var randomNumber = new byte[64];
+            using var rng = System.Security.Cryptography.RandomNumberGenerator.Create();
+            rng.GetBytes(randomNumber);
+
+            return new RefreshToken
+            {
+                Token = Convert.ToBase64String(randomNumber),
+                ExpiresOn = DateTime.UtcNow.AddDays(7),
+                CreatedOn = DateTime.UtcNow
+            };
         }
     }
 }

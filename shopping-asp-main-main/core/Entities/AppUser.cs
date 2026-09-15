@@ -1,4 +1,4 @@
-﻿using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Identity;
 using System;
 using System.Collections.Generic;
 using System.Text;
@@ -16,5 +16,6 @@ namespace core.Entities
         public bool IsEmailConfirmed { get; set; }
         public bool IsFirstLogin { get; set; } = true;
         public ICollection<comment> Comments { get; set; } = new List<comment>();
+        public ICollection<RefreshToken> RefreshTokens { get; set; } = new List<RefreshToken>();
     }
 }

@@ -1,4 +1,4 @@
-﻿using core.Dto;
+using core.Dto;
 using core.Entities;
 using System;
 using System.Collections.Generic;
@@ -10,6 +10,9 @@ namespace core.interfaces
     {
         Task<string> RegisterAsync(registerDto registerDto);
         Task<string> LoginAsync(loginDto loginDto);
+        Task<AuthResponseDto> LoginWithRefreshTokenAsync(loginDto loginDto);
+        Task<AuthResponseDto> RefreshTokenAsync(string token);
+        Task<bool> RevokeTokenAsync(string token);
       
         Task<string> changepassword(ChangePasswordDto changepassword);
         Task<(bool Success, string Message)> ActiveAccountAsync(ActiveAccountDto activeAccount);
